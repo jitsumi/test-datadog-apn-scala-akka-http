@@ -1,9 +1,10 @@
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
-import akka.http.scaladsl.server.Directives._
 import akka.stream.ActorMaterializer
+import akka.http.scaladsl.model.HttpMethods._
 
+import scala.concurrent.Future
 import scala.io.StdIn
 
 object Server {
@@ -14,14 +15,13 @@ object Server {
     // needed for the future flatMap/onComplete in the end
     implicit val executionContext = system.dispatcher
 
-    val route =
-      path("hello") {
-        get {
-          complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, "<h1>Say hello to akka-http</h1>"))
-        }
-      }
+    val asyncHandler: HttpRequest => Future[HttpResponse] = {
+      case HttpRequest(GET, Uri.Path("/hello"), _, _, _) =>
+        Future.successful(HttpResponse(entity = "<h1>Say hello to akka-http</h1>"))
+      case _ => Future(HttpResponse(entity = "ERROR"))
+    }
 
-    val bindingFuture = Http().bindAndHandle(route, "localhost", 8080)
+    val bindingFuture = Http().bindAndHandleAsync(asyncHandler, interface = "localhost", port = 8080)
 
     println(s"Server online at http://localhost:8080/\nPress RETURN to stop...")
     StdIn.readLine() // let it run until user presses return
